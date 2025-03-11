@@ -29,8 +29,8 @@ zinggScript = config["zinggScript"]
 propertyFile = config["propertyFile"]
 reportFile = config["reportFile"]
 workingDirectory = config["directory"]
-snowflakeSetup = config["snowflakeSetup"]
-snowflakeTeardown = config["snowflakeTeardown"]
+setup = config["setup"]
+teardown = config["teardown"]
 
 # replace placeholders in command line
 testConfig = config.copy()
@@ -131,11 +131,11 @@ def perform_load_test():
         exit(1)
 
 def main():
-    if snowflakeSetup is not None:
-        subprocess.run(f"python3 {snowflakeSetup}", shell=True, check=True, env=os.environ)
+    if setup is not None:
+        subprocess.run(f"python3 {setup}", shell=True, check=True, env=os.environ)
     perform_load_test()
-    if snowflakeSetup:
-        subprocess.run(f"python3 {snowflakeTeardown}", shell=True, check=True, env=os.environ)
+    if teardown:
+        subprocess.run(f"python3 {teardown}", shell=True, check=True, env=os.environ)
 
 if __name__ == "__main__":
     main()
