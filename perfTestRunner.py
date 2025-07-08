@@ -64,7 +64,8 @@ def save_results(data):
 def run_phase(phases, commandLine):
     """Run a single test phase."""
     print(f"Running phase - {phases}")
-    return subprocess.call(commandLine, shell=True)
+    exit_code = subprocess.call(commandLine, shell=True)
+    return exit_code
 
 
 def write_on_start():
@@ -109,9 +110,12 @@ def perform_load_test():
     for phases, commandLine in tests.items():
         try:
             t1 = time.time()
-            run_phase(phases, commandLine)
+            exit_code = run_phase(phases, commandLine)
             t2 = time.time()
-            phase_time["results"][phases] = t2 - t1
+            if exit_code == 1:
+                phase_time["results"][phases] = "errored_out"
+            else:
+                phase_time["results"][phases] = t2 - t1
         except Exception as e:
             print(e)
 
@@ -122,7 +126,10 @@ def perform_load_test():
 
     # write results
     for phaseName, times in phase_time["results"].items():
-        test_data["results"][phaseName] =  round(times / 60, 2)
+        if times == "errored_out":
+            test_data["results"][phaseName] =  "phase errored out!"
+        else:
+            test_data["results"][phaseName] =  round(times / 60, 2)
 
     # Save results after successful test execution
     save_results(test_data)
