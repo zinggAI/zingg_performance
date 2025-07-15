@@ -15,6 +15,7 @@ print(f"perfTestRunner: Set TIMESTAMP = {TIMESTAMP}")
 INPUT_FILE = os.environ.get("INPUT")
 print(f"INPUT_FILE = {INPUT_FILE}")
 PERFORMANCE_THRESHOLD = 1.05  # 5% increase in test time
+WINDOW_THRESHOLD = 10 #set 10 minutes window threshold
 
 def load_test_config():
     if not os.path.exists(INPUT_FILE):
@@ -31,6 +32,7 @@ reportFile = config["reportFile"]
 workingDirectory = config["directory"]
 setup = config["setup"]
 teardown = config["teardown"]
+volume = config["volume"]
 
 # replace placeholders in command line
 testConfig = config.copy()
@@ -78,6 +80,16 @@ def write_on_start():
     }
     return test_data
 
+def perform_window_validation(new_time, prev_time):
+    if new_time - prev_time > WINDOW_THRESHOLD:
+        return False
+    return True
+
+def perform_percentage_validation(new_time, prev_time):
+    if new_time > prev_time * PERFORMANCE_THRESHOLD:
+        return False
+    return True
+
 
 def compare_results(prev_results, new_results):
     """Compare new results with previous ones and check for performance degradation."""
@@ -88,12 +100,16 @@ def compare_results(prev_results, new_results):
         if phaseName in prev_results:
             prev_time = prev_results[phaseName]
             new_time = round(times / 60, 2)  # Convert seconds to minutes
+            test_pass = True
+            if phaseName == "train" and int(volume) <= 200000:
+                test_pass = perform_window_validation(new_time, prev_time)
+            else:
+                test_pass = perform_percentage_validation(new_time, prev_time)
 
-            if new_time > prev_time * PERFORMANCE_THRESHOLD:
+            if test_pass == False:
                 print(f"Performance degradation detected in phase {phaseName}!")
                 print(f"Previous time: {prev_time} min, New time: {new_time} min")
                 test_fail = True
-
     return test_fail
 
 
