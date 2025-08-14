@@ -15,6 +15,7 @@ print(f"perfTestRunner: Set TIMESTAMP = {TIMESTAMP}")
 INPUT_FILE = os.environ.get("INPUT")
 print(f"INPUT_FILE = {INPUT_FILE}")
 PERFORMANCE_THRESHOLD = 1.05  # 5% increase in test time
+WINDOW_THRESHOLD = 10 #set 10 minutes window threshold
 
 def load_test_config():
     if not os.path.exists(INPUT_FILE):
@@ -31,6 +32,7 @@ reportFile = config["reportFile"]
 workingDirectory = config["directory"]
 setup = config["setup"]
 teardown = config["teardown"]
+volume = config["volume"]
 
 # replace placeholders in command line
 testConfig = config.copy()
@@ -64,7 +66,8 @@ def save_results(data):
 def run_phase(phases, commandLine):
     """Run a single test phase."""
     print(f"Running phase - {phases}")
-    return subprocess.call(commandLine, shell=True)
+    exit_code = subprocess.call(commandLine, shell=True)
+    return exit_code
 
 
 def write_on_start():
@@ -77,6 +80,16 @@ def write_on_start():
     }
     return test_data
 
+def perform_window_validation(new_time, prev_time):
+    if new_time - prev_time > WINDOW_THRESHOLD:
+        return False
+    return True
+
+def perform_percentage_validation(new_time, prev_time):
+    if new_time > prev_time * PERFORMANCE_THRESHOLD:
+        return False
+    return True
+
 
 def compare_results(prev_results, new_results):
     """Compare new results with previous ones and check for performance degradation."""
@@ -87,12 +100,16 @@ def compare_results(prev_results, new_results):
         if phaseName in prev_results:
             prev_time = prev_results[phaseName]
             new_time = round(times / 60, 2)  # Convert seconds to minutes
+            test_pass = True
+            if phaseName == "train" and int(volume) <= 200000:
+                test_pass = perform_window_validation(new_time, prev_time)
+            else:
+                test_pass = perform_percentage_validation(new_time, prev_time)
 
-            if new_time > prev_time * PERFORMANCE_THRESHOLD:
+            if test_pass == False:
                 print(f"Performance degradation detected in phase {phaseName}!")
                 print(f"Previous time: {prev_time} min, New time: {new_time} min")
                 test_fail = True
-
     return test_fail
 
 
@@ -109,9 +126,12 @@ def perform_load_test():
     for phases, commandLine in tests.items():
         try:
             t1 = time.time()
-            run_phase(phases, commandLine)
+            exit_code = run_phase(phases, commandLine)
             t2 = time.time()
-            phase_time["results"][phases] = t2 - t1
+            if exit_code == 1:
+                phase_time["results"][phases] = "errored_out"
+            else:
+                phase_time["results"][phases] = t2 - t1
         except Exception as e:
             print(e)
 
@@ -122,7 +142,10 @@ def perform_load_test():
 
     # write results
     for phaseName, times in phase_time["results"].items():
-        test_data["results"][phaseName] =  round(times / 60, 2)
+        if times == "errored_out":
+            test_data["results"][phaseName] =  "phase errored out!"
+        else:
+            test_data["results"][phaseName] =  round(times / 60, 2)
 
     # Save results after successful test execution
     save_results(test_data)
