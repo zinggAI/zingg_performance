@@ -32,7 +32,6 @@ reportFile = config["reportFile"]
 workingDirectory = config["directory"]
 setup = config["setup"]
 teardown = config["teardown"]
-volume = config["volume"]
 
 # replace placeholders in command line
 testConfig = config.copy()
@@ -101,7 +100,7 @@ def compare_results(prev_results, new_results):
             prev_time = prev_results[phaseName]
             new_time = round(times / 60, 2)  # Convert seconds to minutes
             test_pass = True
-            if phaseName == "train" and int(volume) <= 200000:
+            if phaseName == "train":
                 test_pass = perform_window_validation(new_time, prev_time)
             else:
                 test_pass = perform_percentage_validation(new_time, prev_time)
