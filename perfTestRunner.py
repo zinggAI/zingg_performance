@@ -81,11 +81,13 @@ def write_on_start():
     return test_data
 
 def perform_window_validation(new_time, prev_time):
+    print(f"Comparing new_time: {new_time} with prev_time: {prev_time}")
     if new_time - prev_time > WINDOW_THRESHOLD:
         return False
     return True
 
 def perform_percentage_validation(new_time, prev_time):
+    print(f"Comparing new_time: {new_time} with prev_time: {prev_time}")
     if new_time > prev_time * PERFORMANCE_THRESHOLD:
         return False
     return True
@@ -98,6 +100,7 @@ def compare_results(prev_results, new_results):
 
     for phaseName, times in new_results.items():
         if phaseName in prev_results:
+            print(f"Comparing results for phase: {phaseName}")
             prev_time = prev_results[phaseName]
             new_time = round(times / 60, 2)  # Convert seconds to minutes
             test_pass = True
