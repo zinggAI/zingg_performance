@@ -61,6 +61,9 @@ def save_results(data):
     """Save current test results to the report file."""
     with open(reportFile, "w") as f:
         json.dump(data, f, indent=4)
+    print(f"Results saved to {reportFile}")
+    # Print results to console
+    print(json.dumps(data, indent=4))
 
 
 def run_phase(phases, commandLine):
