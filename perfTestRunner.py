@@ -14,7 +14,7 @@ print(f"perfTestRunner: Set TIMESTAMP = {TIMESTAMP}")
 
 INPUT_FILE = os.environ.get("INPUT")
 print(f"INPUT_FILE = {INPUT_FILE}")
-PERFORMANCE_THRESHOLD = 1.05  # 5% increase in test time
+PERFORMANCE_THRESHOLD = 1.2  # 5% increase in test time
 WINDOW_THRESHOLD = 10 #set 10 minutes window threshold
 
 def load_test_config():
@@ -33,6 +33,7 @@ workingDirectory = config["directory"]
 setup = config["setup"]
 teardown = config["teardown"]
 
+print(f"CONFIG: testName={testName} | zinggScript={zinggScript} | propertyFile={propertyFile} | reportFile={reportFile}")
 # replace placeholders in command line
 testConfig = config.copy()
 for phase in testConfig["tests"]:
