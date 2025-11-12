@@ -14,7 +14,7 @@ print(f"perfTestRunner: Set TIMESTAMP = {TIMESTAMP}")
 
 INPUT_FILE = os.environ.get("INPUT")
 print(f"INPUT_FILE = {INPUT_FILE}")
-PERFORMANCE_THRESHOLD = 1.2  # 5% increase in test time
+PERFORMANCE_THRESHOLD = 1.05  # 5% increase in test time
 WINDOW_THRESHOLD = 10 #set 10 minutes window threshold
 
 def load_test_config():
@@ -62,8 +62,6 @@ def save_results(data):
     with open(reportFile, "w") as f:
         json.dump(data, f, indent=4)
     print(f"Results saved to {reportFile}")
-    # Print results to console
-    print(json.dumps(data, indent=4))
 
 
 def run_phase(phases, commandLine):
