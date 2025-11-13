@@ -33,6 +33,7 @@ workingDirectory = config["directory"]
 setup = config["setup"]
 teardown = config["teardown"]
 
+print(f"CONFIG: testName={testName} | zinggScript={zinggScript} | propertyFile={propertyFile} | reportFile={reportFile}")
 # replace placeholders in command line
 testConfig = config.copy()
 for phase in testConfig["tests"]:
@@ -60,6 +61,7 @@ def save_results(data):
     """Save current test results to the report file."""
     with open(reportFile, "w") as f:
         json.dump(data, f, indent=4)
+    print(f"Results saved to {reportFile}")
 
 
 def run_phase(phases, commandLine):
@@ -80,11 +82,13 @@ def write_on_start():
     return test_data
 
 def perform_window_validation(new_time, prev_time):
+    print(f"Comparing new_time: {new_time} with prev_time: {prev_time}")
     if new_time - prev_time > WINDOW_THRESHOLD:
         return False
     return True
 
 def perform_percentage_validation(new_time, prev_time):
+    print(f"Comparing new_time: {new_time} with prev_time: {prev_time}")
     if new_time > prev_time * PERFORMANCE_THRESHOLD:
         return False
     return True
@@ -97,6 +101,7 @@ def compare_results(prev_results, new_results):
 
     for phaseName, times in new_results.items():
         if phaseName in prev_results:
+            print(f"Comparing results for phase: {phaseName}")
             prev_time = prev_results[phaseName]
             new_time = round(times / 60, 2)  # Convert seconds to minutes
             test_pass = True
