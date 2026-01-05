@@ -3,27 +3,31 @@ import os
 from datetime import datetime
 
 
-def write_perf_csv(test_name, results, output_dir="perf_reports"):
+def write_perf_csv(data, csv_path):
     """
     Writes a timestamped CSV performance report.
 
+    - Compatible with perfTestRunner.py
     - Generic: supports any number of phases dynamically
-    - Folder structure: perf_reports/<test_name>/<year>/
     - Does NOT overwrite previous reports
     """
+
+    # Ensure parent directory exists
+    os.makedirs(os.path.dirname(csv_path), exist_ok=True)
 
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d")
     time_str = now.strftime("%H-%M-%S")
-    year = now.strftime("%Y")
 
-    # Create directory structure
-    test_dir = os.path.join(output_dir, test_name, year)
-    os.makedirs(test_dir, exist_ok=True)
+    # Extract test name safely
+    test_name = data.get("testName", "unknown_test")
 
-    # CSV filename
-    filename = f"{test_name}_{date_str}_{time_str}.csv"
-    filepath = os.path.join(test_dir, filename)
+    # Extract performance results safely
+    # If JSON has a 'results' block, use it; otherwise flatten top-level
+    results = data.get("results", {})
+
+    if not isinstance(results, dict):
+        raise ValueError("'results' must be a dictionary in input JSON")
 
     # Base headers
     headers = ["date", "time", "test"]
@@ -38,9 +42,9 @@ def write_perf_csv(test_name, results, output_dir="perf_reports"):
         row.append(results.get(phase))
 
     # Write CSV
-    with open(filepath, "w", newline="") as csvfile:
+    with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(headers)
         writer.writerow(row)
 
-    return filepath
+    print("CSV written successfully:", csv_path)
