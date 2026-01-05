@@ -24,8 +24,11 @@ if not os.path.exists(INPUT_FILE):
 # 2. Load JSON content
 # ----------------------------------------------------
 
-with open(INPUT_FILE, "r") as f:
+with open(INPUT_FILE, "r", encoding="utf-8") as f:
     data = json.load(f)
+
+if not isinstance(data, dict):
+    raise ValueError("❌ Input JSON must be a dictionary")
 
 # ----------------------------------------------------
 # 3. Generate timestamp (unique per run)
@@ -33,11 +36,11 @@ with open(INPUT_FILE, "r") as f:
 
 TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-# Optional test name (safe default)
+# Safe test name
 test_name = data.get("testName", "febrl_test")
 
 # ----------------------------------------------------
-# 4. Prepare results directory (inside this repo)
+# 4. Prepare results directory
 # ----------------------------------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -49,11 +52,16 @@ csv_path = os.path.join(
     f"{test_name}_{TIMESTAMP}.csv"
 )
 
+print("Writing CSV to:", csv_path)
+
 # ----------------------------------------------------
-# 5. Write CSV (NO Zingg execution here)
+# 5. Write CSV
 # ----------------------------------------------------
 
-write_perf_csv(data, csv_path)
+write_perf_csv(
+    data=data,
+    csv_path=csv_path
+)
 
-print("✅ CSV successfully written to:")
+print("✅ CSV successfully written")
 print(csv_path)
