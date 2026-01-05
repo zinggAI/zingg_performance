@@ -36,10 +36,23 @@ jobs:
           pip install pandas
 
       - name: Run Zingg FEBRL performance script
-        env:
-          INPUT: "../zingg_community_performance_reports/perf_test/perf_test_report/perfTestInput_febrl120K.json"
         run: |
-          python perfTestRunner.py
+          echo "PWD before cd:"
+          pwd
+          echo "Listing workspace root:"
+          ls -la
+      
+          cd ..
+          echo "PWD after cd:"
+          pwd
+          echo "Listing after cd:"
+          ls -la
+      
+          export INPUT="zingg_community_performance_reports/perf_test/perf_test_report/perfTestInput_febrl120K.json"
+          echo "Using INPUT=$INPUT"
+      
+          python zingg_performance/perfTestRunner.py
+
 
       - name: Show generated CSV files
         run: |
