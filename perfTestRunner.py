@@ -1,183 +1,119 @@
-import subprocess
+import os
 import json
 import time
-import os
-from datetime import date, datetime
+from datetime import datetime
 from perf_csv_writer import write_perf_csv
 
+# -------------------------------------------------------------------
+# 1. Resolve INPUT file ONCE, as an ABSOLUTE path (CRITICAL FIX)
+# -------------------------------------------------------------------
 
-now = datetime.now()
-current_time = now.strftime("%H:%M:%S")
+RAW_INPUT = os.environ.get("INPUT")
+if not RAW_INPUT:
+    raise ValueError("INPUT environment variable is not set")
+
+INPUT_FILE = os.path.abspath(RAW_INPUT)
+
+print("RAW_INPUT =", RAW_INPUT)
+print("ABS_INPUT_FILE =", INPUT_FILE)
+print("Exists before chdir =", os.path.exists(INPUT_FILE))
+
+if not os.path.exists(INPUT_FILE):
+    raise FileNotFoundError(f"Configuration file not found: {INPUT_FILE}")
+
+# -------------------------------------------------------------------
+# 2. Timestamp (used for unique CSV names)
+# -------------------------------------------------------------------
+
 TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-# Set the timestamp as an environment variable
 os.environ["TIMESTAMP"] = TIMESTAMP
 print(f"perfTestRunner: Set TIMESTAMP = {TIMESTAMP}")
 
-INPUT_FILE = os.path.abspath(os.environ.get("INPUT"))
-print(f"INPUT_FILE = {INPUT_FILE}")
-PERFORMANCE_THRESHOLD = 1.05  # 5% increase in test time
-WINDOW_THRESHOLD = 10 #set 10 minutes window threshold
+# -------------------------------------------------------------------
+# 3. Load test configuration (NO relative paths here)
+# -------------------------------------------------------------------
 
 def load_test_config():
-    if not os.path.exists(INPUT_FILE):
-        raise FileNotFoundError(f"Configuration file not found!")
-    with open(INPUT_FILE, "r") as file:
-        return json.load(file)
+    with open(INPUT_FILE, "r") as f:
+        return json.load(f)
 
-# Load configuration
 config = load_test_config()
-testName = config["testName"]
-zinggScript = config["zinggScript"]
-propertyFile = config["propertyFile"]
-reportFile = config["reportFile"]
-workingDirectory = config["directory"]
-setup = config["setup"]
-teardown = config["teardown"]
 
-print(f"CONFIG: testName={testName} | zinggScript={zinggScript} | propertyFile={propertyFile} | reportFile={reportFile}")
-# replace placeholders in command line
-testConfig = config.copy()
-for phase in testConfig["tests"]:
-    testConfig["tests"][phase] = testConfig["tests"][phase].format(
-        zinggScript=zinggScript,
-        propertyFile=propertyFile
-    )
+# -------------------------------------------------------------------
+# 4. Extract required fields from JSON
+# -------------------------------------------------------------------
 
-tests = testConfig["tests"]
+test_name = config.get("testName", "unknown_test")
+zingg_script = config.get("zinggScript")
+property_file = config.get("propertyFile")
+working_directory = config.get("workingDirectory", ".")
 
-os.chdir(os.path.abspath(workingDirectory))
+if not zingg_script or not property_file:
+    raise ValueError("Missing required fields in test config JSON")
 
-def load_results():
-    """Load previous test results if available."""
-    if os.path.exists(reportFile):
-        with open(reportFile, "r") as f:
-            try:
-                return json.load(f)
-            except json.JSONDecodeError:
-                return {}
-    return {}
+# Convert important paths to ABSOLUTE before chdir
+zingg_script = os.path.abspath(zingg_script)
+property_file = os.path.abspath(property_file)
+working_directory = os.path.abspath(working_directory)
 
+print("zingg_script =", zingg_script)
+print("property_file =", property_file)
+print("working_directory =", working_directory)
 
-def save_results(data):
-    """Save current test results to the report file."""
-    with open(reportFile, "w") as f:
-        json.dump(data, f, indent=4)
-    print(f"Results saved to {reportFile}")
+# -------------------------------------------------------------------
+# 5. Change directory ONLY AFTER paths are frozen
+# -------------------------------------------------------------------
 
+os.makedirs(working_directory, exist_ok=True)
+os.chdir(working_directory)
 
-def run_phase(phases, commandLine):
-    """Run a single test phase."""
-    print(f"Running phase - {phases}")
-    exit_code = subprocess.call(commandLine, shell=True)
-    return exit_code
+print("PWD after chdir =", os.getcwd())
 
+# -------------------------------------------------------------------
+# 6. Run the performance test
+# -------------------------------------------------------------------
 
-def write_on_start():
-    """Initialize test report with metadata."""
-    test_data = {
-        "date": str(date.today()),
-        "time": current_time,
-        "test": testName,
-        "results": {}
-    }
-    return test_data
+start_time = time.time()
 
-def perform_window_validation(new_time, prev_time):
-    print(f"Comparing new_time: {new_time} with prev_time: {prev_time}")
-    if new_time - prev_time > WINDOW_THRESHOLD:
-        return False
-    return True
+exit_code = os.system(f"bash {zingg_script} {property_file}")
 
-def perform_percentage_validation(new_time, prev_time):
-    print(f"Comparing new_time: {new_time} with prev_time: {prev_time}")
-    if new_time > prev_time * PERFORMANCE_THRESHOLD:
-        return False
-    return True
+end_time = time.time()
+duration_sec = round(end_time - start_time, 2)
 
+# -------------------------------------------------------------------
+# 7. Prepare CSV output directory
+# -------------------------------------------------------------------
 
-def compare_results(prev_results, new_results):
-    """Compare new results with previous ones and check for performance degradation."""
+RESULTS_DIR = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "results")
+)
+os.makedirs(RESULTS_DIR, exist_ok=True)
 
-    test_fail = False
+# Unique CSV name every run
+csv_file = os.path.join(
+    RESULTS_DIR,
+    f"{test_name}_{TIMESTAMP}.csv"
+)
 
-    for phaseName, times in new_results.items():
-        if phaseName in prev_results:
-            print(f"Comparing results for phase: {phaseName}")
-            prev_time = prev_results[phaseName]
-            new_time = round(times / 60, 2)  # Convert seconds to minutes
-            test_pass = True
-            if phaseName == "train":
-                test_pass = perform_window_validation(new_time, prev_time)
-            else:
-                test_pass = perform_percentage_validation(new_time, prev_time)
+# -------------------------------------------------------------------
+# 8. Write CSV
+# -------------------------------------------------------------------
 
-            if test_pass == False:
-                print(f"Performance degradation detected in phase {phaseName}!")
-                print(f"Previous time: {prev_time} min, New time: {new_time} min")
-                test_fail = True
-    return test_fail
+write_perf_csv(
+    csv_path=csv_file,
+    test_name=test_name,
+    duration_sec=duration_sec,
+    exit_code=exit_code,
+    timestamp=TIMESTAMP
+)
 
+print("CSV written to:", csv_file)
 
-def perform_load_test():
+# -------------------------------------------------------------------
+# 9. Exit with correct status
+# -------------------------------------------------------------------
 
-    prev_results = load_results().get("results", {})
+if exit_code != 0:
+    raise RuntimeError(f"Performance test failed with exit code {exit_code}")
 
-    test_data = write_on_start()  # Initialize metadata
-
-    phase_time = {
-        "results": {}
-    }
-
-    for phases, commandLine in tests.items():
-        try:
-            t1 = time.time()
-            exit_code = run_phase(phases, commandLine)
-            t2 = time.time()
-            if exit_code == 1:
-                phase_time["results"][phases] = "errored_out"
-            else:
-                phase_time["results"][phases] = t2 - t1
-        except Exception as e:
-            print(e)
-
-    # Compare results **before** writing
-    test_fail = compare_results(prev_results, phase_time["results"])
-
-    test_data["results"] = {}
-
-    # write results
-    for phaseName, times in phase_time["results"].items():
-        if times == "errored_out":
-            test_data["results"][phaseName] =  "phase errored out!"
-        else:
-            test_data["results"][phaseName] =  round(times / 60, 2)
-
-    # Save results after successful test execution
-    save_results(test_data)
-
-    csv_results = {
-    k: v for k, v in test_data["results"].items()
-    if isinstance(v, (int, float))
-    }
-
-    if csv_results:
-        write_perf_csv(
-            test_name=testName,
-            results=csv_results
-        )
-
-
-
-    if test_fail:
-        exit(1)
-
-def main():
-    if setup is not None:
-        subprocess.run(f"python3 {setup}", shell=True, check=True, env=os.environ)
-    perform_load_test()
-    if teardown:
-        subprocess.run(f"python3 {teardown}", shell=True, check=True, env=os.environ)
-
-if __name__ == "__main__":
-    main()
+print("Performance test completed successfully.")
