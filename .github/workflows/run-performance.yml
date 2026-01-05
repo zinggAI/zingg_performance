@@ -1,50 +1,37 @@
-name: Run Zingg FEBRL Performance and Generate CSV
+name: Run Performance Tests and Save CSV
 
 on:
-  push:
-    branches:
-      - patch-2
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  performance:
+  performance-test:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout zingg_performance repository
+      - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Checkout zingg_community_performance_reports repository
-        uses: actions/checkout@v4
-        with:
-          repository: Srishti-8976/zingg_community_performance_reports
-          path: zingg_community_performance_reports
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
-          pip install pandas
+          python -m pip install --upgrade pip
 
-      - name: Run Zingg FEBRL performance script
-        working-directory: zingg_performance
-        env:
-          INPUT: "../zingg_community_performance_reports/perf_test/perf_test_report/perfTestInput_febrl120K.json"
+      - name: Run performance test runner
         run: |
-          python perfTestRunner.py
+          python3 perfTestRunner.py
 
-      - name: Show generated CSV files
-        run: |
-          find results -name "*.csv" || echo "No CSV files found"
-
-      - name: Commit generated CSV files (if any)
-        if: "!contains(github.event.head_commit.message, '[auto]')"
+      - name: Commit and push performance CSV reports
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add results/
-          git diff --cached --quiet || git commit -m "Add FEBRL performance CSV results [auto]"
+
+          git add perf_reports || true
+          git commit -m "Add performance CSV reports [skip ci]" || true
           git push
