@@ -27,25 +27,17 @@ jobs:
 
       - name: Install Python dependencies
         run: |
-          if [ -f requirements.txt ]; then
-            pip install -r requirements.txt
-          fi
-          if [ -f zingg_community_performance_reports/requirements.txt ]; then
-            pip install -r zingg_community_performance_reports/requirements.txt
-          fi
           pip install pandas
 
       - name: Run Zingg FEBRL performance script
-        working-directory: ${{ github.workspace }}
+        working-directory: zingg_performance
         env:
-          INPUT: "${{ github.workspace }}/zingg_community_performance_reports/perf_test/perf_test_report/perfTestInput_febrl120K.json"
+          INPUT: "../zingg_community_performance_reports/perf_test/perf_test_report/perfTestInput_febrl120K.json"
         run: |
           python perfTestRunner.py
 
-
       - name: Show generated CSV files
         run: |
-          echo "Generated CSV files:"
           find results -name "*.csv" || echo "No CSV files found"
 
       - name: Commit generated CSV files (if any)
@@ -53,12 +45,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
           git add results/
-
-          if git diff --cached --quiet; then
-            echo "No CSV files to commit"
-          else
-            git commit -m "Add FEBRL performance CSV results [auto]"
-            git push
-          fi
+          git diff --cached --quiet || git commit -m "Add FEBRL performance CSV results [auto]"
+          git push
