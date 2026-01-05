@@ -11,24 +11,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout zingg_performance repo (this repo)
       - name: Checkout zingg_performance repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Checkout zingg_community_performance_reports repo (for FEBRL config JSON)
       - name: Checkout zingg_community_performance_reports repository
         uses: actions/checkout@v4
         with:
           repository: Srishti-8976/zingg_community_performance_reports
           path: zingg_community_performance_reports
 
-      # 3️⃣ Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      # 4️⃣ Install dependencies (only if requirements exist)
       - name: Install Python dependencies
         run: |
           if [ -f requirements.txt ]; then
@@ -39,31 +35,17 @@ jobs:
           fi
           pip install pandas
 
-      # 4.5️⃣ Debug: verify the FEBRL input file exists
-      - name: Debug: verify input JSON exists
-        run: |
-          INPUT_FILE="${{ github.workspace }}/zingg_community_performance_reports/perf_test/perf_test_report/perfTestInput_febrl120K.json"
-          echo "Expecting input file at: $INPUT_FILE"
-          ls -la "$(dirname "$INPUT_FILE")" || true
-          if [ ! -f "$INPUT_FILE" ]; then
-            echo "ERROR: input file not found: $INPUT_FILE"
-            exit 1
-          fi
-
-      # 5️⃣ Run FEBRL performance test (pass correct env var and path)
       - name: Run Zingg FEBRL performance script
         env:
-          INPUT_FILE: "${{ github.workspace }}/zingg_community_performance_reports/perf_test/perf_test_report/perfTestInput_febrl120K.json"
+          INPUT: "${{ github.workspace }}/zingg_community_performance_reports/perf_test/perf_test_report/perfTestInput_febrl120K.json"
         run: |
-          python perfTestRunner.py "${INPUT_FILE}"
+          python perfTestRunner.py
 
-      # 6️⃣ Show generated CSV files
       - name: Show generated CSV files
         run: |
           echo "Generated CSV files:"
           find results -name "*.csv" || echo "No CSV files found"
 
-      # 7️⃣ Commit generated CSV files safely (no infinite loop)
       - name: Commit generated CSV files (if any)
         if: "!contains(github.event.head_commit.message, '[auto]')"
         run: |
