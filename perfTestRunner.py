@@ -14,7 +14,7 @@ TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
 os.environ["TIMESTAMP"] = TIMESTAMP
 print(f"perfTestRunner: Set TIMESTAMP = {TIMESTAMP}")
 
-INPUT_FILE = os.environ.get("INPUT")
+INPUT_FILE = os.path.abspath(os.environ.get("INPUT"))
 print(f"INPUT_FILE = {INPUT_FILE}")
 PERFORMANCE_THRESHOLD = 1.05  # 5% increase in test time
 WINDOW_THRESHOLD = 10 #set 10 minutes window threshold
