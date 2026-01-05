@@ -1,6 +1,9 @@
-name: Run FEBRL Performance and Save CSV
+name: Run Zingg FEBRL Performance and Generate CSV
 
 on:
+  push:
+    branches:
+      - patch-2
   workflow_dispatch:
 
 permissions:
@@ -11,42 +14,49 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Checkout zingg_performance (CSV destination)
-      - name: Checkout zingg_performance
+      #1
+      - name: Checkout zingg_performance (patch-2)
         uses: actions/checkout@v4
+        with:
+          ref: patch-2
 
-      # 2. Checkout zingg_community_performance_reports (JSON source)
-      - name: Checkout zingg_community_performance_reports
+      #2
+      - name: Checkout zingg_community_performance_reports 
         uses: actions/checkout@v4
         with:
           repository: Srishti-8976/zingg_community_performance_reports
           path: community_repo
 
-      # 3. Setup Python
+      #3
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      # 4. Install dependencies
-      - name: Install dependencies
+      #4
+      - name: Install Python dependencies
         run: |
           pip install pandas
 
-      # 5. Run FEBRL performance test
-      - name: Run performance test
+      #5   
+      - name: Run Zingg FEBRL performance script
         env:
           INPUT: ${{ github.workspace }}/community_repo/perf_test/perf_test_report/perfTestInput_febrl120K.json
         run: |
           echo "Using INPUT=$INPUT"
           python perfTestRunner.py
 
-      # 6. Commit generated CSV files
+      #6
       - name: Commit generated CSV files
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add perf_reports results || true
-          git commit -m "Add FEBRL performance CSV results [auto]" || true
-          git push
+
+          if git diff --cached --quiet; then
+            echo "No CSV files to commit"
+          else
+            git commit -m "Add FEBRL performance CSV results [auto]"
+            git push origin patch-2
+          fi
