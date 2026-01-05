@@ -3,48 +3,56 @@ import os
 from datetime import datetime
 
 
-def write_perf_csv(data, csv_path):
+def write_perf_csv(
+    csv_path: str,
+    test_name: str,
+    duration_sec: float,
+    exit_code: int,
+    timestamp: str | None = None,
+):
     """
-    Writes a timestamped CSV performance report.
+    Write a single-run performance CSV.
 
-    - Compatible with perfTestRunner.py
-    - Generic: supports any number of phases dynamically
-    - Does NOT overwrite previous reports
+    Guaranteed schema (DO NOT CHANGE):
+    date,time,test_name,duration_sec,exit_code
+
+    This format is required by:
+    - generate_plots.py
+    - GitHub Actions automation
     """
 
-    # Ensure parent directory exists
+    # Ensure output directory exists
     os.makedirs(os.path.dirname(csv_path), exist_ok=True)
 
-    now = datetime.now()
-    date_str = now.strftime("%Y-%m-%d")
-    time_str = now.strftime("%H-%M-%S")
+    # Timestamp handling
+    if timestamp:
+        dt = datetime.strptime(timestamp, "%Y%m%d_%H%M%S")
+    else:
+        dt = datetime.now()
 
-    # Extract test name safely
-    test_name = data.get("testName", "unknown_test")
+    date_str = dt.strftime("%Y-%m-%d")
+    time_str = dt.strftime("%H:%M:%S")
 
-    # Extract performance results safely
-    # If JSON has a 'results' block, use it; otherwise flatten top-level
-    results = data.get("results", {})
+    headers = [
+        "date",
+        "time",
+        "test_name",
+        "duration_sec",
+        "exit_code",
+    ]
 
-    if not isinstance(results, dict):
-        raise ValueError("'results' must be a dictionary in input JSON")
-
-    # Base headers
-    headers = ["date", "time", "test"]
-
-    # Dynamic phase headers
-    phase_names = sorted(results.keys())
-    headers.extend(phase_names)
-
-    # CSV row
-    row = [date_str, time_str, test_name]
-    for phase in phase_names:
-        row.append(results.get(phase))
+    row = [
+        date_str,
+        time_str,
+        test_name,
+        round(float(duration_sec), 2),
+        int(exit_code),
+    ]
 
     # Write CSV
-    with open(csv_path, "w", newline="", encoding="utf-8") as csvfile:
-        writer = csv.writer(csvfile)
+    with open(csv_path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
         writer.writerow(headers)
         writer.writerow(row)
 
-    print("CSV written successfully:", csv_path)
+    print(f"[perf_csv_writer] CSV written: {csv_path}")
