@@ -27,9 +27,6 @@ if not os.path.exists(INPUT_FILE):
 with open(INPUT_FILE, "r", encoding="utf-8") as f:
     data = json.load(f)
 
-if not isinstance(data, dict):
-    raise ValueError("❌ Input JSON must be a dictionary")
-
 # ----------------------------------------------------
 # 3. Generate timestamp (unique per run)
 # ----------------------------------------------------
@@ -40,7 +37,7 @@ TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
 test_name = data.get("testName", "febrl_test")
 
 # ----------------------------------------------------
-# 4. Prepare results directory
+# 4. Prepare results directory (inside this repo)
 # ----------------------------------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -55,13 +52,10 @@ csv_path = os.path.join(
 print("Writing CSV to:", csv_path)
 
 # ----------------------------------------------------
-# 5. Write CSV
+# 5. Write CSV (POSITIONAL args — important)
 # ----------------------------------------------------
 
-write_perf_csv(
-    data=data,
-    csv_path=csv_path
-)
+write_perf_csv(data, csv_path)
 
 print("✅ CSV successfully written")
 print(csv_path)
