@@ -6,6 +6,8 @@ on:
     branches:
       - patch-2
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 */3 * *"
 
 permissions:
   contents: write
