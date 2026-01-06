@@ -4,63 +4,50 @@ from datetime import datetime
 from perf_csv_writer import write_perf_csv
 
 # ----------------------------------------------------
-# 1. Read RESULT JSON (testReport_*.json)
+# 1. Resolve testReport JSON path
 # ----------------------------------------------------
 
 RAW_INPUT = os.environ.get("INPUT")
 if not RAW_INPUT:
-    raise ValueError("INPUT environment variable not set")
+    raise ValueError("❌ INPUT environment variable not set")
 
-INPUT_FILE = os.path.abspath(RAW_INPUT)
-print("Using report JSON:", INPUT_FILE)
+REPORT_FILE = os.path.abspath(RAW_INPUT)
 
-if not os.path.exists(INPUT_FILE):
-    raise FileNotFoundError(f"Report JSON not found: {INPUT_FILE}")
+print("Using testReport JSON:", REPORT_FILE)
+print("Exists:", os.path.exists(REPORT_FILE))
 
-with open(INPUT_FILE, "r") as f:
+if not os.path.exists(REPORT_FILE):
+    raise FileNotFoundError(f"❌ testReport JSON not found: {REPORT_FILE}")
+
+# ----------------------------------------------------
+# 2. Load report JSON
+# ----------------------------------------------------
+
+with open(REPORT_FILE, "r") as f:
     report = json.load(f)
-
-# ----------------------------------------------------
-# 2. Extract meaningful test results
-# ----------------------------------------------------
-
-test_name = report.get("testName", "unknown_test")
-
-# Example metrics (adjust keys if needed)
-metrics = {
-    "total_records": report.get("totalRecords"),
-    "matched_records": report.get("matchedRecords"),
-    "precision": report.get("precision"),
-    "recall": report.get("recall"),
-    "f1_score": report.get("f1Score"),
-    "duration_sec": report.get("durationSeconds"),
-}
-
-# Remove None values
-metrics = {k: v for k, v in metrics.items() if v is not None}
-
-if not metrics:
-    raise ValueError("No metrics found in testReport JSON")
 
 # ----------------------------------------------------
 # 3. Prepare CSV path
 # ----------------------------------------------------
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+RESULTS_DIR = os.path.join(BASE_DIR, "results")
+os.makedirs(RESULTS_DIR, exist_ok=True)
+
+test_name = report.get("test", "unknown_test")
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-base_dir = os.path.dirname(os.path.abspath(__file__))
-results_dir = os.path.join(base_dir, "results")
-os.makedirs(results_dir, exist_ok=True)
 
-csv_path = os.path.join(results_dir, f"{test_name}_{timestamp}.csv")
-
-# ----------------------------------------------------
-# 4. Write CSV
-# ----------------------------------------------------
-
-write_perf_csv(
-    test_name=test_name,
-    metrics=metrics,
-    csv_path=csv_path
+csv_path = os.path.join(
+    RESULTS_DIR,
+    f"{test_name}_{timestamp}.csv"
 )
 
-print("✅ Results CSV written:", csv_path)
+print("Writing CSV to:", csv_path)
+
+# ----------------------------------------------------
+# 4. Write CSV from report JSON
+# ----------------------------------------------------
+
+write_perf_csv(report, csv_path)
+
+print("🎉 Performance CSV generation completed successfully")
