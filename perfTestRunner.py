@@ -13,8 +13,7 @@ if not RAW_INPUT:
 
 REPORT_FILE = os.path.abspath(RAW_INPUT)
 
-print("Using testReport JSON:", REPORT_FILE)
-print("Exists:", os.path.exists(REPORT_FILE))
+print(f"[INFO] Using testReport JSON: {REPORT_FILE}")
 
 if not os.path.exists(REPORT_FILE):
     raise FileNotFoundError(f"❌ testReport JSON not found: {REPORT_FILE}")
@@ -23,18 +22,34 @@ if not os.path.exists(REPORT_FILE):
 # 2. Load report JSON
 # ----------------------------------------------------
 
-with open(REPORT_FILE, "r") as f:
+with open(REPORT_FILE, "r", encoding="utf-8") as f:
     report = json.load(f)
 
 # ----------------------------------------------------
-# 3. Prepare CSV path
+# 3. Validate expected JSON structure
+# ----------------------------------------------------
+
+required_keys = ["date", "test", "results"]
+
+for key in required_keys:
+    if key not in report:
+        raise ValueError(f"❌ Missing required key '{key}' in testReport JSON")
+
+if not isinstance(report["results"], dict) or not report["results"]:
+    raise ValueError("❌ 'results' must be a non-empty dictionary")
+
+print("[INFO] Test name:", report["test"])
+print("[INFO] Metrics found:", list(report["results"].keys()))
+
+# ----------------------------------------------------
+# 4. Prepare CSV output path (append-only history)
 # ----------------------------------------------------
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 RESULTS_DIR = os.path.join(BASE_DIR, "results")
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-test_name = report.get("test", "unknown_test")
+test_name = report["test"]
 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
 csv_path = os.path.join(
@@ -42,12 +57,13 @@ csv_path = os.path.join(
     f"{test_name}_{timestamp}.csv"
 )
 
-print("Writing CSV to:", csv_path)
+print(f"[INFO] Writing CSV to: {csv_path}")
 
 # ----------------------------------------------------
-# 4. Write CSV from report JSON
+# 5. Write CSV from report JSON
 # ----------------------------------------------------
 
 write_perf_csv(report, csv_path)
 
-print("🎉 Performance CSV generation completed successfully")
+print("✅ Performance CSV generation completed successfully")
+
