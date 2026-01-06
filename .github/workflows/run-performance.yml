@@ -41,7 +41,7 @@ jobs:
       #5   
       - name: Run Zingg FEBRL performance script
         env:
-          INPUT: zingg_community_performance_reports/perf_test/perfTestInput_febrl120K.json
+          INPUT: zingg_community_performance_reports/perf_test/perf_test_report/testReport_febrl120K.json
         run: |
           python perfTestRunner.py
 
