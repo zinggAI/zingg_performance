@@ -1,10 +1,9 @@
 name: Run Zingg FEBRL Performance and Generate CSV
 
 on:
-  push:
-    branches:
-      - patch-2
   workflow_dispatch:
+  schedule:
+    - cron: "0 0 */3 * *"
 
 permissions:
   contents: write
@@ -45,10 +44,14 @@ jobs:
           python perfTestRunner.py
       #6
       - name: Commit generated CSV files
-        if: "!contains(github.event.head_commit.message, '[auto]')"
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add results/ || true
-          git commit -m "Add FEBRL performance CSV results [auto]" || true
-          git push
+
+          git add results/
+          if git diff --cached --quiet; then
+            echo "No new CSV generated"
+          else
+            git commit -m "Add FEBRL performance CSV snapshot [auto]"
+            git push
+          fi
