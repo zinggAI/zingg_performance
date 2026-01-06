@@ -4,58 +4,63 @@ from datetime import datetime
 from perf_csv_writer import write_perf_csv
 
 # ----------------------------------------------------
-# 1. Read INPUT JSON path from environment
+# 1. Read RESULT JSON (testReport_*.json)
 # ----------------------------------------------------
 
 RAW_INPUT = os.environ.get("INPUT")
 if not RAW_INPUT:
-    raise ValueError("❌ INPUT environment variable is not set")
+    raise ValueError("INPUT environment variable not set")
 
 INPUT_FILE = os.path.abspath(RAW_INPUT)
-
-print("RAW_INPUT =", RAW_INPUT)
-print("ABS_INPUT_FILE =", INPUT_FILE)
-print("Exists =", os.path.exists(INPUT_FILE))
+print("Using report JSON:", INPUT_FILE)
 
 if not os.path.exists(INPUT_FILE):
-    raise FileNotFoundError(f"❌ Input JSON not found: {INPUT_FILE}")
+    raise FileNotFoundError(f"Report JSON not found: {INPUT_FILE}")
+
+with open(INPUT_FILE, "r") as f:
+    report = json.load(f)
 
 # ----------------------------------------------------
-# 2. Load JSON content
+# 2. Extract meaningful test results
 # ----------------------------------------------------
 
-with open(INPUT_FILE, "r", encoding="utf-8") as f:
-    data = json.load(f)
+test_name = report.get("testName", "unknown_test")
+
+# Example metrics (adjust keys if needed)
+metrics = {
+    "total_records": report.get("totalRecords"),
+    "matched_records": report.get("matchedRecords"),
+    "precision": report.get("precision"),
+    "recall": report.get("recall"),
+    "f1_score": report.get("f1Score"),
+    "duration_sec": report.get("durationSeconds"),
+}
+
+# Remove None values
+metrics = {k: v for k, v in metrics.items() if v is not None}
+
+if not metrics:
+    raise ValueError("No metrics found in testReport JSON")
 
 # ----------------------------------------------------
-# 3. Generate timestamp (unique per run)
+# 3. Prepare CSV path
 # ----------------------------------------------------
 
-TIMESTAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+base_dir = os.path.dirname(os.path.abspath(__file__))
+results_dir = os.path.join(base_dir, "results")
+os.makedirs(results_dir, exist_ok=True)
 
-# Safe test name
-test_name = data.get("testName", "febrl_test")
+csv_path = os.path.join(results_dir, f"{test_name}_{timestamp}.csv")
 
 # ----------------------------------------------------
-# 4. Prepare results directory (inside this repo)
+# 4. Write CSV
 # ----------------------------------------------------
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-RESULTS_DIR = os.path.join(BASE_DIR, "results")
-os.makedirs(RESULTS_DIR, exist_ok=True)
-
-csv_path = os.path.join(
-    RESULTS_DIR,
-    f"{test_name}_{TIMESTAMP}.csv"
+write_perf_csv(
+    test_name=test_name,
+    metrics=metrics,
+    csv_path=csv_path
 )
 
-print("Writing CSV to:", csv_path)
-
-# ----------------------------------------------------
-# 5. Write CSV (POSITIONAL args — important)
-# ----------------------------------------------------
-
-write_perf_csv(data, csv_path)
-
-print("✅ CSV successfully written")
-print(csv_path)
+print("✅ Results CSV written:", csv_path)
