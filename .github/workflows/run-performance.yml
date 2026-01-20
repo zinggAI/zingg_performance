@@ -1,61 +1,43 @@
-
-name: Run Zingg FEBRL Performance and Generate CSV
+name: Run Zingg Performance Tests
 
 on:
-  push:
-    branches:
-      - patch-2
   workflow_dispatch:
   schedule:
-    - cron: "0 0 */3 * *"
-
-permissions:
-  contents: write
+    - cron: "0 2 * * *"   # runs daily at 2 AM UTC (optional)
 
 jobs:
-  performance:
+  performance-tests:
     runs-on: ubuntu-latest
 
+    # Prevent infinite loop when workflow commits CSV
+    if: "!contains(github.event.head_commit.message, '[auto]')"
+
     steps:
-      #1
-      - name: Checkout zingg_performance (patch-2)
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          ref: patch-2
+          fetch-depth: 0
 
-      #2
-      - name: Checkout upstream zingg_community_performance_reports 
-        uses: actions/checkout@v4
-        with:
-          repository: zinggAI/zingg_community_performance_reports
-          path: community_reports
-
-      #3
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.9"
 
-      #4
-      - name: Install Python dependencies
+      - name: Install dependencies
         run: |
-          pip install pandas
-      #5   
-      - name: Run Zingg FEBRL performance script
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Run performance tests
         env:
-          INPUT: community_reports/perf_test/perf_test_report/testReport_febrl120K.json
+          INPUT: config/perf_test_config.json   # update if your path differs
         run: |
           python perfTestRunner.py
-      #6
-      - name: Commit generated CSV files
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add results/
-          if git diff --cached --quiet; then
-            echo "No new CSV generated"
-          else
-            git commit -m "Add FEBRL performance CSV snapshot [auto]"
-            git push
-          fi
+      - name: Commit performance CSV reports
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add performance_reports/csv/
+          git commit -m "Add performance CSV report [auto]" || echo "No changes to commit"
+          git push
