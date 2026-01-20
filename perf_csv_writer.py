@@ -1,74 +1,53 @@
 import csv
 import os
 
-
-def write_perf_csv(report_json, csv_path):
+def json_to_csv(test_data, base_dir="performance_reports/csv"):
     """
-    Writes performance CSV from Zingg testReport JSON.
+    Convert a single performance JSON report to a CSV file.
 
-    Expected JSON format:
-    {
-      "date": "YYYY-MM-DD",
-      "time": "HH:MM:SS",
-      "test": "<test_name>",
-      "results": {
-          "train": <number>,
-          "match": <number>,
-          ...
-      }
-    }
+    Addresses PR requirements:
+    1. Generic columns (auto-detected test phases)
+    2. Reports per test per year
+    3. One CSV per test run (timestamped)
     """
 
-    # ----------------------------------------------------
-    # 1. Validate input JSON
-    # ----------------------------------------------------
+    test_name = test_data["test"]
+    date = test_data["date"]          # YYYY-MM-DD
+    time = test_data["time"]          # HH:MM:SS
+    year = date.split("-")[0]
 
-    if not isinstance(report_json, dict):
-        raise ValueError("❌ report_json must be a dictionary")
+    # Clean time for filename (HHMMSS)
+    clean_time = time.replace(":", "")
 
-    date = report_json.get("date")
-    time = report_json.get("time")
-    test = report_json.get("test")
-    results = report_json.get("results")
-
-    if not date or not time or not test:
-        raise ValueError("❌ 'date', 'time', or 'test' missing in testReport JSON")
-
-    if not isinstance(results, dict) or not results:
-        raise ValueError("❌ 'results' field missing or empty in testReport JSON")
-
-    # Ensure all result values are numeric (critical for plotting)
-    cleaned_results = {}
-    for key, value in results.items():
-        if isinstance(value, (int, float)):
-            cleaned_results[key] = value
-        else:
-            raise ValueError(
-                f"❌ Result '{key}' must be numeric, got {type(value).__name__}"
-            )
-
-    # ----------------------------------------------------
-    # 2. Ensure output directory exists
-    # ----------------------------------------------------
-
-    output_dir = os.path.dirname(csv_path)
+    # Directory structure: csv/<test_name>/<year>/
+    output_dir = os.path.join(base_dir, test_name, year)
     os.makedirs(output_dir, exist_ok=True)
 
-    # ----------------------------------------------------
-    # 3. Prepare CSV structure
-    # ----------------------------------------------------
+    # CSV file name: testName_date_time.csv
+    csv_file = f"{test_name}_{date}_{clean_time}.csv"
+    csv_path = os.path.join(output_dir, csv_file)
 
-    headers = ["date", "time", "test"] + list(cleaned_results.keys())
-    row = [date, time, test] + list(cleaned_results.values())
+    # Base headers
+    headers = ["date", "time", "test"]
 
-    # ----------------------------------------------------
-    # 4. Write CSV (overwrite-safe due to timestamped filename)
-    # ----------------------------------------------------
+    # Dynamically add phase names
+    phase_columns = list(test_data["results"].keys())
+    headers.extend(phase_columns)
 
-    with open(csv_path, "w", newline="", encoding="utf-8") as f:
-        writer = csv.writer(f)
-        writer.writerow(headers)
+    # Build row
+    row = {
+        "date": date,
+        "time": time,
+        "test": test_name
+    }
+
+    for phase, value in test_data["results"].items():
+        row[phase] = value
+
+    # Write CSV (new file every run)
+    with open(csv_path, "w", newline="") as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=headers)
+        writer.writeheader()
         writer.writerow(row)
 
-    print("✅ Performance CSV written successfully:")
-    print(csv_path)
+    print(f"CSV performance report written to {csv_path}")
