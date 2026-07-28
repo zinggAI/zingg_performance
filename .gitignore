@@ -1,2 +1,5 @@
 
 /.idea
+/dummy_report.json
+/dummy_config*.json
+/dummy_config*_report.csv

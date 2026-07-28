@@ -7,3 +7,4 @@ The main script here is perfTestRunner, which takes arguments in the form of jso
 The perfTestRunner will run each test defined in the config, and save the runtime to a file location defined in the json. 
 
 
+![Zingg Performance History](performance_chart.png)
